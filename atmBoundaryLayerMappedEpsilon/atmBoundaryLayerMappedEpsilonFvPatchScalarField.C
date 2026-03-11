@@ -61,11 +61,11 @@ atmBoundaryLayerMappedEpsilonFvPatchScalarField
 )
 :
     inletOutletFvPatchScalarField(p, iF),
-    atmBoundaryLayerMapped(iF.time(), p.patch(), dict, "epsilon")
+    atmBoundaryLayerMapped(iF.time(), p.patch(), dict)
 {
     phiName_ = dict.getOrDefault<word>("phi", "phi");
 
-    if (useMapping()) { refValue() = scalarMapped(); } else { refValue() = epsilon(patch().Cf()); }
+    refValue() = epsilon(patch().Cf());
     refGrad() = 0;
     valueFraction() = 1;
 
@@ -116,7 +116,37 @@ void atmBoundaryLayerMappedEpsilonFvPatchScalarField::updateCoeffs()
         return;
     }
 
-    if (useMapping()) { refValue() = scalarMapped(); } else { refValue() = epsilon(patch().Cf()); }
+    // Check if U field exists and is using mapped velocity BC
+    const volVectorField* Uptr = nullptr;
+    bool useMappedU = false;
+
+    if (db().foundObject<volVectorField>("U"))
+    {
+        Uptr = &db().lookupObject<volVectorField>("U");
+        const fvPatchVectorField& Upatch = Uptr->boundaryField()[patch().index()];
+
+        // Check if U is using atmBoundaryLayerMappedVelocity
+        if (Upatch.type() == "atmBoundaryLayerMappedVelocity")
+        {
+            useMappedU = true;
+        }
+    }
+
+    if (useMappedU && Uptr)
+    {
+        // Get actual U values from patch
+        const fvPatchVectorField& Upatch = Uptr->boundaryField()[patch().index()];
+        const vectorField& Uvalues = Upatch.patchInternalField();
+
+        // Calculate u* from actual U and then epsilon
+        tmp<scalarField> tuStar = UstarFromU(Uvalues, patch().Cf());
+        refValue() = epsilonFromUstar(tuStar(), patch().Cf());
+    }
+    else
+    {
+        // Use standard ABL formula based on Uref
+        refValue() = epsilon(patch().Cf());
+    }
 
     inletOutletFvPatchScalarField::updateCoeffs();
 }

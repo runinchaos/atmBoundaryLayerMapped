@@ -234,6 +234,58 @@ tmp<scalarField> atmBoundaryLayerMapped::Ustar(const scalarField& z0) const
 }
 
 
+tmp<scalarField> atmBoundaryLayerMapped::z0() const
+{
+    const scalar t = time_.timeOutputValue();
+    return max(z0_->value(t), ROOTVSMALL);
+}
+
+
+tmp<scalarField> atmBoundaryLayerMapped::d() const
+{
+    const scalar t = time_.timeOutputValue();
+    return d_->value(t);
+}
+
+
+tmp<scalarField> atmBoundaryLayerMapped::UstarFromU
+(
+    const vectorField& Uvalues,
+    const vectorField& pCf
+) const
+{
+    const scalar t = time_.timeOutputValue();
+    const scalarField dvals(d_->value(t));
+    const scalarField z0vals(max(z0_->value(t), ROOTVSMALL));
+    const scalar groundMin = zDir() & ppMin_;
+
+    // Calculate u* from actual U using log law:
+    // u* = kappa * U / ln((z - d + z0)/z0)
+    scalarField ustar(Uvalues.size());
+
+    forAll(Uvalues, i)
+    {
+        const scalar z = ((zDir() & pCf[i]) - groundMin);
+        const scalar z0i = z0vals[i];
+        const scalar di = dvals[i];
+
+        // Get streamwise velocity component
+        const scalar Ustream = Uvalues[i] & flowDir();
+
+        if (Ustream > SMALL)
+        {
+            ustar[i] = kappa_*Ustream/log((z - di + z0i)/z0i);
+        }
+        else
+        {
+            ustar[i] = 0;
+        }
+    }
+
+    return ustar;
+}
+
+
 void atmBoundaryLayerMapped::autoMap(const fvPatchFieldMapper& mapper)
 {
     if (z0_)
@@ -334,6 +386,44 @@ tmp<scalarField> atmBoundaryLayerMapped::omega(const vectorField& pCf) const
 
     // (YGJ:Eq. 13)
     return Ustar(z0)/(kappa_*sqrt(Cmu_)*((zDir() & pCf) - groundMin - d + z0));
+}
+
+
+tmp<scalarField> atmBoundaryLayerMapped::kFromUstar(const scalarField& uStar, const vectorField& pCf) const
+{
+    const scalar t = time_.timeOutputValue();
+    const scalarField d(d_->value(t));
+    const scalarField z0(max(z0_->value(t), ROOTVSMALL));
+    const scalar groundMin = zDir() & ppMin_;
+
+    // (YGCJ:Eq. 21)
+    return sqr(uStar)/sqrt(Cmu_)
+       *sqrt(C1_*log(((zDir() & pCf) - groundMin - d + z0)/z0) + C2_);
+}
+
+
+tmp<scalarField> atmBoundaryLayerMapped::epsilonFromUstar(const scalarField& uStar, const vectorField& pCf) const
+{
+    const scalar t = time_.timeOutputValue();
+    const scalarField d(d_->value(t));
+    const scalarField z0(max(z0_->value(t), ROOTVSMALL));
+    const scalar groundMin = zDir() & ppMin_;
+
+    // (YGCJ:Eq. 22)
+    return pow3(uStar)/(kappa_*((zDir() & pCf) - groundMin - d + z0))
+       *sqrt(C1_*log(((zDir() & pCf) - groundMin - d + z0)/z0) + C2_);
+}
+
+
+tmp<scalarField> atmBoundaryLayerMapped::omegaFromUstar(const scalarField& uStar, const vectorField& pCf) const
+{
+    const scalar t = time_.timeOutputValue();
+    const scalarField d(d_->value(t));
+    const scalarField z0(max(z0_->value(t), ROOTVSMALL));
+    const scalar groundMin = zDir() & ppMin_;
+
+    // (YGJ:Eq. 13)
+    return uStar/(kappa_*sqrt(Cmu_)*((zDir() & pCf) - groundMin - d + z0));
 }
 
 

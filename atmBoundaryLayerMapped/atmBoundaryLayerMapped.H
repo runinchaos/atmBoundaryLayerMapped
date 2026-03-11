@@ -339,8 +339,21 @@ public:
             //- Return the ground-normal direction
             vector zDir() const;
 
-            //- Return friction velocity
+            //- Return friction velocity (based on Uref)
             tmp<scalarField> Ustar(const scalarField& z0) const;
+
+            //- Return friction velocity from actual U values (for mapped velocity)
+            tmp<scalarField> UstarFromU
+            (
+                const vectorField& Uvalues,
+                const vectorField& pCf
+            ) const;
+
+            //- Return surface roughness length values
+            tmp<scalarField> z0() const;
+
+            //- Return displacement height values
+            tmp<scalarField> d() const;
 
 
         // Mapping
@@ -365,6 +378,15 @@ public:
 
             //- Return the specific dissipation rate distribution for the ATM
             tmp<scalarField> omega(const vectorField& pCf) const;
+
+            //- Return k calculated from given u* (for mapped velocity consistency)
+            tmp<scalarField> kFromUstar(const scalarField& uStar, const vectorField& pCf) const;
+
+            //- Return epsilon calculated from given u* (for mapped velocity consistency)
+            tmp<scalarField> epsilonFromUstar(const scalarField& uStar, const vectorField& pCf) const;
+
+            //- Return omega calculated from given u* (for mapped velocity consistency)
+            tmp<scalarField> omegaFromUstar(const scalarField& uStar, const vectorField& pCf) const;
 
             //- Return mapped velocity (with ABL scaling applied)
             tmp<vectorField> Umapped(const vectorField& pCf) const;
