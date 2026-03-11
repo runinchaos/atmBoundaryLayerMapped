@@ -60,11 +60,11 @@ atmBoundaryLayerMappedKFvPatchScalarField
 )
 :
     inletOutletFvPatchScalarField(p, iF),
-    atmBoundaryLayerMapped(iF.time(), p.patch(), dict)
+    atmBoundaryLayerMapped(iF.time(), p.patch(), dict, "k")
 {
     phiName_ = dict.getOrDefault<word>("phi", "phi");
 
-    refValue() = k(patch().Cf());
+    if (useMapping()) { refValue() = scalarMapped(); } else { refValue() = k(patch().Cf()); }
     refGrad() = 0;
     valueFraction() = 1;
 
@@ -115,7 +115,7 @@ void atmBoundaryLayerMappedKFvPatchScalarField::updateCoeffs()
         return;
     }
 
-    refValue() = k(patch().Cf());
+    if (useMapping()) { refValue() = scalarMapped(); } else { refValue() = k(patch().Cf()); }
 
     inletOutletFvPatchScalarField::updateCoeffs();
 }

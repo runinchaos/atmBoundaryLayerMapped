@@ -60,11 +60,11 @@ atmBoundaryLayerMappedVelocityFvPatchVectorField
 )
 :
     inletOutletFvPatchVectorField(p, iF),
-    atmBoundaryLayerMapped(iF.time(), p.patch(), dict)
+    atmBoundaryLayerMapped(iF.time(), p.patch(), dict, "U")
 {
     phiName_ = dict.getOrDefault<word>("phi", "phi");
 
-    refValue() = U(patch().Cf());
+    refValue() = Umapped(patch().Cf());
     refGrad() = Zero;
     valueFraction() = 1;
 
@@ -115,7 +115,7 @@ void atmBoundaryLayerMappedVelocityFvPatchVectorField::updateCoeffs()
         return;
     }
 
-    refValue() = U(patch().Cf());
+    refValue() = Umapped(patch().Cf());
 
     inletOutletFvPatchVectorField::updateCoeffs();
 }

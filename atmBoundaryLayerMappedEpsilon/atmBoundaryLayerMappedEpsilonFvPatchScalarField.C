@@ -61,11 +61,11 @@ atmBoundaryLayerMappedEpsilonFvPatchScalarField
 )
 :
     inletOutletFvPatchScalarField(p, iF),
-    atmBoundaryLayerMapped(iF.time(), p.patch(), dict)
+    atmBoundaryLayerMapped(iF.time(), p.patch(), dict, "epsilon")
 {
     phiName_ = dict.getOrDefault<word>("phi", "phi");
 
-    refValue() = epsilon(patch().Cf());
+    if (useMapping()) { refValue() = scalarMapped(); } else { refValue() = epsilon(patch().Cf()); }
     refGrad() = 0;
     valueFraction() = 1;
 
@@ -116,7 +116,7 @@ void atmBoundaryLayerMappedEpsilonFvPatchScalarField::updateCoeffs()
         return;
     }
 
-    refValue() = epsilon(patch().Cf());
+    if (useMapping()) { refValue() = scalarMapped(); } else { refValue() = epsilon(patch().Cf()); }
 
     inletOutletFvPatchScalarField::updateCoeffs();
 }

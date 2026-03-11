@@ -59,11 +59,11 @@ atmBoundaryLayerMappedOmegaFvPatchScalarField
 )
 :
     inletOutletFvPatchScalarField(p, iF),
-    atmBoundaryLayerMapped(iF.time(), p.patch(), dict)
+    atmBoundaryLayerMapped(iF.time(), p.patch(), dict, "omega")
 {
     phiName_ = dict.getOrDefault<word>("phi", "phi");
 
-    refValue() = omega(patch().Cf());
+    if (useMapping()) { refValue() = scalarMapped(); } else { refValue() = omega(patch().Cf()); }
     refGrad() = 0;
     valueFraction() = 1;
 
@@ -114,7 +114,7 @@ void atmBoundaryLayerMappedOmegaFvPatchScalarField::updateCoeffs()
         return;
     }
 
-    refValue() = omega(patch().Cf());
+    if (useMapping()) { refValue() = scalarMapped(); } else { refValue() = omega(patch().Cf()); }
 
     inletOutletFvPatchScalarField::updateCoeffs();
 }
