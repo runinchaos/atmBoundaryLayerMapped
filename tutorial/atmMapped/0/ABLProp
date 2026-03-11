@@ -1,0 +1,4 @@
+zDir            (0 0 1);
+Zref            30;     
+z0              uniform 1;
+d               uniform 0;

@@ -2,4 +2,7 @@
 *.dep
 lnInclude/
 Make/linux*/
-Make/darwin*/
+tutorial/*/*00
+tutorial/*/processor*
+tutorial/*/constant/polyMesh
+*Identifier

@@ -1,0 +1,43 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     | Version:  v2012
+    \\  /    A nd           | Website:  www.openfoam.com
+     \\/     M anipulation  |
+-------------------------------------------------------------------------------
+Description
+    Writes out values of fields from cells nearest to specified locations.
+
+\*---------------------------------------------------------------------------*/
+
+FoamFile
+{
+    version         2.0;
+    format          ascii;
+    class           dictionary;
+    location        system;
+    object          probesDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+// Fields to be probed (runTime modifiable)
+fields
+(
+    U
+);
+
+// Locations to be probed (runTime modifiable)
+probeLocations
+(
+    (-167 -48 1.5)  //图书馆气象站
+    (156.5 -85.47 1.5) //45-46气象站
+    (683.1 247 1.5) //外国语气象站
+);
+
+writeControl    timeStep;
+writeInterval   100;
+
+
+interpolationScheme cellPoint;//Linear weighted interpolation using cell values
+
+// ************************************************************************* //

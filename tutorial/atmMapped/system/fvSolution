@@ -1,0 +1,107 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2012                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "system";
+    object      fvSolution;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+solvers
+{
+    p
+    {
+        solver          GAMG;
+        tolerance       1e-6;
+        relTol          0.01;
+        smoother        DICGaussSeidel;
+    }
+
+    pFinal
+    {
+        $p;
+        tolerance       1e-8;
+        relTol          0;
+    }
+
+    U
+    {
+        solver          PBiCGStab;
+        preconditioner        DILU;
+        tolerance       1e-6;
+        relTol          0.01;
+    }
+
+    UFinal
+    {
+        $U;
+        tolerance       1e-8;
+        relTol          0;
+    }
+
+    "(k|epsilon|R)"
+    {
+        solver          PBiCGStab;
+        preconditioner        DILU;
+        tolerance       1e-6;
+        relTol          0.01;
+    }
+
+    "(epsilon|k)Final"
+    {
+        $epsilon;
+        tolerance       1e-8;
+        relTol          0;
+    }
+
+    
+}
+
+PIMPLE
+{
+    nOuterCorrectors    3;
+    nCOrrectors         1;
+    nNonOrthogonalCorrectors 0;
+    residualControl
+    {
+        U
+        {
+                tolerance  1e-3;
+                relTol      0;
+        }
+        p
+        {
+                tolerance  1e-3;
+                relTol      0;
+        }
+     }
+}
+
+SIMPLE
+{
+    consistent false;
+}
+
+relaxationFactors
+{
+    fields
+    {
+        p       0.3;
+    }
+    equations
+    {
+        U        0.7;
+        k        0.7;
+        epsilon        0.7;
+    }
+}
+
+// ************************************************************************* //
