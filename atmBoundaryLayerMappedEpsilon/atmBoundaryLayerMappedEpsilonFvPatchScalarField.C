@@ -65,7 +65,7 @@ atmBoundaryLayerMappedEpsilonFvPatchScalarField
 {
     phiName_ = dict.getOrDefault<word>("phi", "phi");
 
-    refValue() = 0;
+    refValue() = 1;
     refGrad() = 0;
     valueFraction() = 1;
 
@@ -138,7 +138,7 @@ void atmBoundaryLayerMappedEpsilonFvPatchScalarField::updateCoeffs()
     }
 
     // Get actual U values from patch
-    const vectorField& Uvalues = Upatch.patchInternalField();
+    const vectorField Uvalues(Upatch.patchInternalField());
 
     // Calculate u* from actual U and then epsilon
     tmp<scalarField> tuStar = UstarFromU(Uvalues, patch().Cf());

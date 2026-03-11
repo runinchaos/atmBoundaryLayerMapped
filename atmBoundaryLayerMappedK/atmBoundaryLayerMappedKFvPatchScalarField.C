@@ -65,7 +65,7 @@ atmBoundaryLayerMappedKFvPatchScalarField
     phiName_ = dict.getOrDefault<word>("phi", "phi");
 
     // Initial value will be overwritten by updateCoeffs
-    refValue() = 0;
+    refValue() = 1;
     refGrad() = 0;
     valueFraction() = 1;
 
@@ -137,8 +137,16 @@ void atmBoundaryLayerMappedKFvPatchScalarField::updateCoeffs()
             << abort(FatalError);
     }
 
-    // Get actual U values from patch
-    const vectorField& Uvalues = Upatch.patchInternalField();
+    // Check if U has been updated (not during initialization)
+    if (!Upatch.updated())
+    {
+        // Skip calculation during initialization, use current refValue
+        inletOutletFvPatchScalarField::updateCoeffs();
+        return;
+    }
+
+    // Get actual U values from patch (copy to avoid reference issues)
+    const vectorField Uvalues(Upatch.patchInternalField());
 
     // Calculate u* from actual U using base class function
     tmp<scalarField> tuStar = UstarFromU(Uvalues, patch().Cf());

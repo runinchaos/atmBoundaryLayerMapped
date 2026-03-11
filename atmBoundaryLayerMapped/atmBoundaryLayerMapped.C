@@ -194,6 +194,24 @@ tmp<scalarField> atmBoundaryLayerMapped::UstarFromU
     const vectorField& pCf
 ) const
 {
+    // Safety checks
+    if (!zDir_)
+    {
+        FatalErrorInFunction << "zDir not initialized" << abort(FatalError);
+    }
+    if (!z0_)
+    {
+        FatalErrorInFunction << "z0 not initialized" << abort(FatalError);
+    }
+    if (!d_)
+    {
+        FatalErrorInFunction << "d not initialized" << abort(FatalError);
+    }
+    if (Uvalues.size() != pCf.size())
+    {
+        FatalErrorInFunction << "Uvalues size " << Uvalues.size() << " != pCf size " << pCf.size() << abort(FatalError);
+    }
+
     const scalar t = time_.timeOutputValue();
     const scalarField dvals(d_->value(t));
     const scalarField z0vals(max(z0_->value(t), ROOTVSMALL));
