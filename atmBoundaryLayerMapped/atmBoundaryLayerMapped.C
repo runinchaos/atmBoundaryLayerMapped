@@ -27,6 +27,7 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "atmBoundaryLayerMapped.H"
+#include "PstreamReduceOps.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -212,19 +213,36 @@ tmp<scalarField> atmBoundaryLayerMapped::UstarFromU
         FatalErrorInFunction << "Uvalues size " << Uvalues.size() << " != pCf size " << pCf.size() << abort(FatalError);
     }
 
+    // Handle empty patch (parallel-safe)
+    if (Uvalues.empty())
+    {
+        return tmp<scalarField>::New(0);
+    }
+
     const scalar t = time_.timeOutputValue();
     const scalarField dvals(d_->value(t));
     const scalarField z0vals(max(z0_->value(t), ROOTVSMALL));
     const scalar groundMin = zDir() & ppMin_;
 
-    // Calculate flow direction from Uvalues (always use computed direction)
+    // Calculate flow direction from Uvalues using parallel-safe reduce
     vector avgU = Zero;
     forAll(Uvalues, i)
     {
         avgU += Uvalues[i];
     }
-    avgU /= Uvalues.size();
-    
+
+    // Parallel: sum across all processors
+    reduce(avgU, sumOp<vector>());
+
+    // Get total number of faces across all processors
+    label nTotalFaces = Uvalues.size();
+    reduce(nTotalFaces, sumOp<label>());
+
+    if (nTotalFaces > 0)
+    {
+        avgU /= nTotalFaces;
+    }
+
     vector flowDirection;
     const scalar magAvgU = mag(avgU);
     if (magAvgU > SMALL)
@@ -249,13 +267,16 @@ tmp<scalarField> atmBoundaryLayerMapped::UstarFromU
         // Get streamwise velocity component
         const scalar Ustream = Uvalues[i] & flowDirection;
 
-        if (Ustream > SMALL)
+        // Ensure log argument is valid (> 0)
+        const scalar logArg = max((z - di + z0i)/z0i, ROOTVSMALL);
+
+        if (Ustream > SMALL && logArg > 1.0)
         {
-            ustar[i] = kappa_*Ustream/log((z - di + z0i)/z0i);
+            ustar[i] = kappa_*Ustream/log(logArg);
         }
         else
         {
-            ustar[i] = 0;
+            ustar[i] = ROOTVSMALL;
         }
     }
 
@@ -314,44 +335,74 @@ void atmBoundaryLayerMapped::rmap
 
 tmp<scalarField> atmBoundaryLayerMapped::kFromUstar(const scalarField& uStar, const vectorField& pCf) const
 {
+    if (pCf.empty())
+    {
+        return tmp<scalarField>::New(0);
+    }
+
     const scalar t = time_.timeOutputValue();
     const scalarField d(d_->value(t));
     const scalarField z0(max(z0_->value(t), ROOTVSMALL));
     const scalar groundMin = zDir() & ppMin_;
 
-    // (YGCJ:Eq. 21)
+    // (YGCJ:Eq. 21) with bounds checking
+    scalarField logArg = ((zDir() & pCf) - groundMin - d + z0)/z0;
+    logArg = max(logArg, ROOTVSMALL);
+
     return sqr(uStar)/sqrt(Cmu_)
-       *sqrt(C1_*log(((zDir() & pCf) - groundMin - d + z0)/z0) + C2_);
+       *sqrt(C1_*log(logArg) + C2_);
 }
 
 
 tmp<scalarField> atmBoundaryLayerMapped::epsilonFromUstar(const scalarField& uStar, const vectorField& pCf) const
 {
+    if (pCf.empty())
+    {
+        return tmp<scalarField>::New(0);
+    }
+
     const scalar t = time_.timeOutputValue();
     const scalarField d(d_->value(t));
     const scalarField z0(max(z0_->value(t), ROOTVSMALL));
     const scalar groundMin = zDir() & ppMin_;
 
-    // (YGCJ:Eq. 22)
-    return pow3(uStar)/(kappa_*((zDir() & pCf) - groundMin - d + z0))
-       *sqrt(C1_*log(((zDir() & pCf) - groundMin - d + z0)/z0) + C2_);
+    // (YGCJ:Eq. 22) with bounds checking
+    scalarField denom = max((zDir() & pCf) - groundMin - d + z0, ROOTVSMALL);
+    scalarField logArg = denom/z0;
+    logArg = max(logArg, ROOTVSMALL);
+
+    return pow3(uStar)/(kappa_*denom)
+       *sqrt(C1_*log(logArg) + C2_);
 }
 
 
 tmp<scalarField> atmBoundaryLayerMapped::omegaFromUstar(const scalarField& uStar, const vectorField& pCf) const
 {
+    if (pCf.empty())
+    {
+        return tmp<scalarField>::New(0);
+    }
+
     const scalar t = time_.timeOutputValue();
     const scalarField d(d_->value(t));
     const scalarField z0(max(z0_->value(t), ROOTVSMALL));
     const scalar groundMin = zDir() & ppMin_;
 
-    // (YGJ:Eq. 13)
-    return uStar/(kappa_*sqrt(Cmu_)*((zDir() & pCf) - groundMin - d + z0));
+    // (YGJ:Eq. 13) with bounds checking
+    scalarField denom = max((zDir() & pCf) - groundMin - d + z0, ROOTVSMALL);
+
+    return uStar/(kappa_*sqrt(Cmu_)*denom);
 }
 
 
 tmp<vectorField> atmBoundaryLayerMapped::Umapped(const vectorField& pCf) const
 {
+    // Handle empty patch (parallel-safe)
+    if (pCf.empty())
+    {
+        return tmp<vectorField>::New(0);
+    }
+
     // Always use mapping - this BC is designed for mapped data only
     const scalar t = time_.timeOutputValue();
     tmp<vectorField> tmappedU(UMapper_->value(t));
@@ -369,7 +420,11 @@ tmp<vectorField> atmBoundaryLayerMapped::Umapped(const vectorField& pCf) const
         const scalar z0i = z0[i];
         const scalar di = d[i];
 
-        scalar scale = log((z - di + z0i)/z0i) / log((Zref_->value(t) + z0i)/z0i);
+        // Bounds checking for log arguments
+        scalar logArg1 = max((z - di + z0i)/z0i, ROOTVSMALL);
+        scalar logArg2 = max((Zref_->value(t) + z0i)/z0i, ROOTVSMALL);
+
+        scalar scale = log(logArg1) / log(logArg2);
         scale = max(scale, 0);
 
         mappedU[i] *= scale;
