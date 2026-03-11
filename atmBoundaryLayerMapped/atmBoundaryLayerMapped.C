@@ -95,9 +95,46 @@ atmBoundaryLayerMapped::atmBoundaryLayerMapped
     const word& fieldName
 )
 :
-    atmBoundaryLayerMapped(time, pp, dict)
+    initABL_(dict.getOrDefault<bool>("initABL", true)),
+    kappa_
+    (
+        dict.getCheckOrDefault<scalar>("kappa", 0.41, scalarMinMax::ge(SMALL))
+    ),
+    Cmu_(dict.getCheckOrDefault<scalar>("Cmu", 0.09, scalarMinMax::ge(SMALL))),
+    C1_(dict.getOrDefault("C1", 0.0)),
+    C2_(dict.getOrDefault("C2", 1.0)),
+    ppMin_((boundBox(pp.points())).min()),
+    time_(time),
+    patch_(pp),
+    flowDir_(nullptr),
+    zDir_(Function1<vector>::New("zDir", dict, &time)),
+    Uref_(nullptr),
+    Zref_(Function1<scalar>::New("Zref", dict, &time)),
+    z0_(PatchFunction1<scalar>::New(pp, "z0", dict)),
+    d_(PatchFunction1<scalar>::New(pp, "d", dict)),
+    UMapper_(nullptr),
+    scalarMapper_(nullptr),
+    useMapping_(dict.getOrDefault<bool>("useMapping", true))
 {
-    useMapping_ = dict.getOrDefault<bool>("useMapping", true);
+    // Only required flowDir and Uref if not using mapping
+    if (!useMapping_ || fieldName != "U")
+    {
+        flowDir_.reset(Function1<vector>::New("flowDir", dict, &time).ptr());
+        Uref_.reset(Function1<scalar>::New("Uref", dict, &time).ptr());
+    }
+    else
+    {
+        // For mapped velocity, flowDir and Uref are optional
+        // Try to read them if provided (for k/epsilon/omega calculation fallback)
+        if (dict.found("flowDir"))
+        {
+            flowDir_.reset(Function1<vector>::New("flowDir", dict, &time).ptr());
+        }
+        if (dict.found("Uref"))
+        {
+            Uref_.reset(Function1<scalar>::New("Uref", dict, &time).ptr());
+        }
+    }
 
     if (useMapping_)
     {
@@ -182,6 +219,14 @@ atmBoundaryLayerMapped::atmBoundaryLayerMapped(const atmBoundaryLayerMapped& abl
 
 vector atmBoundaryLayerMapped::flowDir() const
 {
+    if (!flowDir_)
+    {
+        FatalErrorInFunction
+            << "flowDir not initialized. Required for non-mapped mode or "
+            << "when calculating turbulence quantities without mapped velocity."
+            << abort(FatalError);
+    }
+
     const scalar t = time_.timeOutputValue();
     const vector dir(flowDir_->value(t));
     const scalar magDir = mag(dir);
@@ -218,6 +263,14 @@ vector atmBoundaryLayerMapped::zDir() const
 
 tmp<scalarField> atmBoundaryLayerMapped::Ustar(const scalarField& z0) const
 {
+    if (!Uref_)
+    {
+        FatalErrorInFunction
+            << "Uref not initialized. Required for non-mapped mode or "
+            << "when calculating turbulence quantities without mapped velocity."
+            << abort(FatalError);
+    }
+
     const scalar t = time_.timeOutputValue();
     const scalar Uref = Uref_->value(t);
     const scalar Zref = Zref_->value(t);
@@ -259,6 +312,33 @@ tmp<scalarField> atmBoundaryLayerMapped::UstarFromU
     const scalarField z0vals(max(z0_->value(t), ROOTVSMALL));
     const scalar groundMin = zDir() & ppMin_;
 
+    // Determine flow direction
+    vector flowDirection;
+    if (flowDir_)
+    {
+        flowDirection = flowDir();
+    }
+    else
+    {
+        // Calculate average flow direction from Uvalues
+        vector avgU = Zero;
+        forAll(Uvalues, i)
+        {
+            avgU += Uvalues[i];
+        }
+        avgU /= Uvalues.size();
+        
+        const scalar magAvgU = mag(avgU);
+        if (magAvgU > SMALL)
+        {
+            flowDirection = avgU / magAvgU;
+        }
+        else
+        {
+            flowDirection = vector(1, 0, 0); // Default to x-direction
+        }
+    }
+
     // Calculate u* from actual U using log law:
     // u* = kappa * U / ln((z - d + z0)/z0)
     scalarField ustar(Uvalues.size());
@@ -270,7 +350,7 @@ tmp<scalarField> atmBoundaryLayerMapped::UstarFromU
         const scalar di = dvals[i];
 
         // Get streamwise velocity component
-        const scalar Ustream = Uvalues[i] & flowDir();
+        const scalar Ustream = Uvalues[i] & flowDirection;
 
         if (Ustream > SMALL)
         {
