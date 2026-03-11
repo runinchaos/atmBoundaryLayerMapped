@@ -75,7 +75,7 @@ atmBoundaryLayerMapped::atmBoundaryLayerMapped
     ppMin_((boundBox(pp.points())).min()),
     time_(time),
     patch_(pp),
-    flowDir_(Function1<vector>::New("flowDir", dict, &time)),
+    flowDir_(nullptr),
     zDir_(Function1<vector>::New("zDir", dict, &time)),
     Uref_(Function1<scalar>::New("Uref", dict, &time)),
     Zref_(Function1<scalar>::New("Zref", dict, &time)),
@@ -116,24 +116,10 @@ atmBoundaryLayerMapped::atmBoundaryLayerMapped
     scalarMapper_(nullptr),
     useMapping_(dict.getOrDefault<bool>("useMapping", true))
 {
-    // Only required flowDir and Uref if not using mapping
+    // Uref only required if not using mapping for velocity
     if (!useMapping_ || fieldName != "U")
     {
-        flowDir_.reset(Function1<vector>::New("flowDir", dict, &time).ptr());
         Uref_.reset(Function1<scalar>::New("Uref", dict, &time).ptr());
-    }
-    else
-    {
-        // For mapped velocity, flowDir and Uref are optional
-        // Try to read them if provided (for k/epsilon/omega calculation fallback)
-        if (dict.found("flowDir"))
-        {
-            flowDir_.reset(Function1<vector>::New("flowDir", dict, &time).ptr());
-        }
-        if (dict.found("Uref"))
-        {
-            Uref_.reset(Function1<scalar>::New("Uref", dict, &time).ptr());
-        }
     }
 
     if (useMapping_)
@@ -223,27 +209,10 @@ atmBoundaryLayerMapped::atmBoundaryLayerMapped(const atmBoundaryLayerMapped& abl
 
 vector atmBoundaryLayerMapped::flowDir() const
 {
-    if (!flowDir_)
-    {
-        FatalErrorInFunction
-            << "flowDir not initialized. Required for non-mapped mode or "
-            << "when calculating turbulence quantities without mapped velocity."
-            << abort(FatalError);
-    }
-
-    const scalar t = time_.timeOutputValue();
-    const vector dir(flowDir_->value(t));
-    const scalar magDir = mag(dir);
-
-    if (magDir < SMALL)
-    {
-        FatalErrorInFunction
-            << "magnitude of " << flowDir_->name() << " = " << magDir
-            << " vector must be greater than zero"
-            << abort(FatalError);
-    }
-
-    return dir/magDir;
+    // flowDir is no longer read from dictionary
+    // Return default direction (x-axis) for ABL mode
+    // For mapped mode, flow direction is computed from actual U values
+    return vector(1, 0, 0);
 }
 
 
@@ -566,10 +535,6 @@ void atmBoundaryLayerMapped::write(Ostream& os) const
     os.writeEntry("Cmu", Cmu_);
     os.writeEntry("C1", C1_);
     os.writeEntry("C2", C2_);
-    if (flowDir_)
-    {
-        flowDir_->writeData(os);
-    }
     if (zDir_)
     {
         zDir_->writeData(os);
