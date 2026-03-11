@@ -142,24 +142,28 @@ atmBoundaryLayerMapped::atmBoundaryLayerMapped
         {
             UMapper_.reset
             (
-                PatchFunction1<vector>::New
+                new PatchFunction1Types::MappedFile<vector>
                 (
                     pp,
-                    fieldName,
-                    dict
-                ).ptr()
+                    "MappedFile",  // redirectType
+                    fieldName,     // entryName
+                    dict,          // dictionary
+                    true           // faceValues
+                )
             );
         }
         else
         {
             scalarMapper_.reset
             (
-                PatchFunction1<scalar>::New
+                new PatchFunction1Types::MappedFile<scalar>
                 (
                     pp,
-                    fieldName,
-                    dict
-                ).ptr()
+                    "MappedFile",  // redirectType
+                    fieldName,     // entryName
+                    dict,          // dictionary
+                    true           // faceValues
+                )
             );
         }
     }

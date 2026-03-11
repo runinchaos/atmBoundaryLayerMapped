@@ -219,6 +219,7 @@ SourceFiles
 #include "fvPatchFields.H"
 #include "Function1.H"
 #include "PatchFunction1.H"
+#include "MappedFile.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
