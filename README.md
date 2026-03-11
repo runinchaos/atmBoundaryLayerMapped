@@ -110,18 +110,12 @@ boundaryField
     "(North|West|South|East)"
     {
         type            atmBoundaryLayerMappedVelocity;
-        
         // ABL参数
         zDir            (0 0 1);        // 垂直方向
         Zref            10;             // 参考高度
         z0              uniform 1;      // 粗糙度长度
         d               uniform 0;      // 位移高度
         
-        // 可选：ABL常数
-        kappa           0.41;           // von Kármán常数
-        Cmu             0.09;
-        C1              0.0;
-        C2              1.0;
     }
 }
 ```
@@ -134,12 +128,16 @@ boundaryField
     "(North|West|South|East)"
     {
         type            atmBoundaryLayerMappedK;  // 或MappedEpsilon/MappedOmega
-        phi             phi;                      // 可选，默认为"phi"
+        // ABL参数
+        zDir            (0 0 1);        // 垂直方向
+        Zref            10;             // 参考高度
+        z0              uniform 1;      // 粗糙度长度
+        d               uniform 0;      // 位移高度
     }
 }
 ```
 
-**注意**：k/ε/ω边界会自动从同patch的U边界复制zDir、Zref、z0、d等参数。
+
 
 ### 3. 加载库
 
@@ -283,14 +281,3 @@ void updateCoeffs()
 └── README.md
 ```
 
-## 许可证
-
-GNU GPL v3 (与OpenFOAM保持一致)
-
-## 更新日志
-
-### v1.0 (Current)
-- 实现严格的配套检查机制
-- U从boundaryData读取并应用ABL缩放
-- k/ε/ω通过ABL公式从U自动计算
-- 流向自动计算，无需flowDir参数
