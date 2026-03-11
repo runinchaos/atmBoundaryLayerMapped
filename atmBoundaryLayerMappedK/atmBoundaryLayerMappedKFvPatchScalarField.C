@@ -64,7 +64,8 @@ atmBoundaryLayerMappedKFvPatchScalarField
 {
     phiName_ = dict.getOrDefault<word>("phi", "phi");
 
-    refValue() = k(patch().Cf());
+    // Initial value will be overwritten by updateCoeffs
+    refValue() = 0;
     refGrad() = 0;
     valueFraction() = 1;
 

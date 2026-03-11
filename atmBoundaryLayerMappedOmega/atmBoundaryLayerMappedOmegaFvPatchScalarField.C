@@ -63,7 +63,7 @@ atmBoundaryLayerMappedOmegaFvPatchScalarField
 {
     phiName_ = dict.getOrDefault<word>("phi", "phi");
 
-    refValue() = omega(patch().Cf());
+    refValue() = 0;
     refGrad() = 0;
     valueFraction() = 1;
 
