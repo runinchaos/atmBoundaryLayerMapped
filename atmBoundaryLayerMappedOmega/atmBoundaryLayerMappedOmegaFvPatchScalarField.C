@@ -114,37 +114,33 @@ void atmBoundaryLayerMappedOmegaFvPatchScalarField::updateCoeffs()
         return;
     }
 
-    // Check if U field exists and is using mapped velocity BC
-    const volVectorField* Uptr = nullptr;
-    bool useMappedU = false;
-
-    if (db().foundObject<volVectorField>("U"))
+    // Strict check: U field must exist and use atmBoundaryLayerMappedVelocity
+    if (!db().foundObject<volVectorField>("U"))
     {
-        Uptr = &db().lookupObject<volVectorField>("U");
-        const fvPatchVectorField& Upatch = Uptr->boundaryField()[patch().index()];
-
-        // Check if U is using atmBoundaryLayerMappedVelocity
-        if (Upatch.type() == "atmBoundaryLayerMappedVelocity")
-        {
-            useMappedU = true;
-        }
+        FatalErrorInFunction
+            << "U field not found in database. "
+            << "atmBoundaryLayerMappedOmega must be used together with atmBoundaryLayerMappedVelocity."
+            << abort(FatalError);
     }
 
-    if (useMappedU && Uptr)
-    {
-        // Get actual U values from patch
-        const fvPatchVectorField& Upatch = Uptr->boundaryField()[patch().index()];
-        const vectorField& Uvalues = Upatch.patchInternalField();
+    const fvPatchVectorField& Upatch =
+        db().lookupObject<volVectorField>("U").boundaryField()[patch().index()];
 
-        // Calculate u* from actual U and then omega
-        tmp<scalarField> tuStar = UstarFromU(Uvalues, patch().Cf());
-        refValue() = omegaFromUstar(tuStar(), patch().Cf());
-    }
-    else
+    if (Upatch.type() != "atmBoundaryLayerMappedVelocity")
     {
-        // Use standard ABL formula based on Uref
-        refValue() = omega(patch().Cf());
+        FatalErrorInFunction
+            << "U boundary field type '" << Upatch.type() << "' is not compatible. "
+            << "atmBoundaryLayerMappedOmega must be used together with atmBoundaryLayerMappedVelocity, "
+            << "but found '" << Upatch.type() << "' at patch '" << patch().name() << "'."
+            << abort(FatalError);
     }
+
+    // Get actual U values from patch
+    const vectorField& Uvalues = Upatch.patchInternalField();
+
+    // Calculate u* from actual U and then omega
+    tmp<scalarField> tuStar = UstarFromU(Uvalues, patch().Cf());
+    refValue() = omegaFromUstar(tuStar(), patch().Cf());
 
     inletOutletFvPatchScalarField::updateCoeffs();
 }
