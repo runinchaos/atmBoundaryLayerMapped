@@ -50,7 +50,10 @@ atmBoundaryLayerMapped::atmBoundaryLayerMapped(const Time& time, const polyPatch
     Uref_(nullptr),
     Zref_(nullptr),
     z0_(nullptr),
-    d_(nullptr)
+    d_(nullptr),
+    UMapper_(nullptr),
+    scalarMapper_(nullptr),
+    useMapping_(false)
 {}
 
 
@@ -77,8 +80,53 @@ atmBoundaryLayerMapped::atmBoundaryLayerMapped
     Uref_(Function1<scalar>::New("Uref", dict, &time)),
     Zref_(Function1<scalar>::New("Zref", dict, &time)),
     z0_(PatchFunction1<scalar>::New(pp, "z0", dict)),
-    d_(PatchFunction1<scalar>::New(pp, "d", dict))
+    d_(PatchFunction1<scalar>::New(pp, "d", dict)),
+    UMapper_(nullptr),
+    scalarMapper_(nullptr),
+    useMapping_(false)
 {}
+
+
+atmBoundaryLayerMapped::atmBoundaryLayerMapped
+(
+    const Time& time,
+    const polyPatch& pp,
+    const dictionary& dict,
+    const word& fieldName
+)
+:
+    atmBoundaryLayerMapped(time, pp, dict)
+{
+    useMapping_ = dict.getOrDefault<bool>("useMapping", true);
+
+    if (useMapping_)
+    {
+        if (fieldName == "U")
+        {
+            UMapper_.reset
+            (
+                PatchFunction1<vector>::New
+                (
+                    pp,
+                    fieldName,
+                    dict
+                ).ptr()
+            );
+        }
+        else
+        {
+            scalarMapper_.reset
+            (
+                PatchFunction1<scalar>::New
+                (
+                    pp,
+                    fieldName,
+                    dict
+                ).ptr()
+            );
+        }
+    }
+}
 
 
 atmBoundaryLayerMapped::atmBoundaryLayerMapped
@@ -101,7 +149,10 @@ atmBoundaryLayerMapped::atmBoundaryLayerMapped
     Uref_(abl.Uref_.clone()),
     Zref_(abl.Zref_.clone()),
     z0_(abl.z0_.clone(patch_)),
-    d_(abl.d_.clone(patch_))
+    d_(abl.d_.clone(patch_)),
+    UMapper_(abl.UMapper_.clone(patch_)),
+    scalarMapper_(abl.scalarMapper_.clone(patch_)),
+    useMapping_(abl.useMapping_)
 {}
 
 
@@ -120,7 +171,10 @@ atmBoundaryLayerMapped::atmBoundaryLayerMapped(const atmBoundaryLayerMapped& abl
     Uref_(abl.Uref_.clone()),
     Zref_(abl.Zref_.clone()),
     z0_(abl.z0_.clone(patch_)),
-    d_(abl.d_.clone(patch_))
+    d_(abl.d_.clone(patch_)),
+    UMapper_(abl.UMapper_.clone(patch_)),
+    scalarMapper_(abl.scalarMapper_.clone(patch_)),
+    useMapping_(abl.useMapping_)
 {}
 
 
@@ -190,6 +244,14 @@ void atmBoundaryLayerMapped::autoMap(const fvPatchFieldMapper& mapper)
     {
         d_->autoMap(mapper);
     }
+    if (UMapper_)
+    {
+        UMapper_->autoMap(mapper);
+    }
+    if (scalarMapper_)
+    {
+        scalarMapper_->autoMap(mapper);
+    }
 }
 
 
@@ -206,6 +268,14 @@ void atmBoundaryLayerMapped::rmap
     if (d_)
     {
         d_->rmap(abl.d_(), addr);
+    }
+    if (UMapper_)
+    {
+        UMapper_->rmap(abl.UMapper_(), addr);
+    }
+    if (scalarMapper_)
+    {
+        scalarMapper_->rmap(abl.scalarMapper_(), addr);
     }
 }
 
@@ -267,8 +337,56 @@ tmp<scalarField> atmBoundaryLayerMapped::omega(const vectorField& pCf) const
 }
 
 
+tmp<vectorField> atmBoundaryLayerMapped::Umapped(const vectorField& pCf) const
+{
+    if (!useMapping_ || !UMapper_)
+    {
+        return U(pCf);
+    }
+
+    const scalar t = time_.timeOutputValue();
+    tmp<vectorField> tmappedU(UMapper_->value(t));
+    vectorField& mappedU = tmappedU.ref();
+
+    const scalarField d(d_->value(t));
+    const scalarField z0(max(z0_->value(t), ROOTVSMALL));
+    const scalar groundMin = zDir() & ppMin_;
+
+    const scalarField zHeight = (zDir() & pCf) - groundMin;
+
+    forAll(mappedU, i)
+    {
+        const scalar z = zHeight[i];
+        const scalar z0i = z0[i];
+        const scalar di = d[i];
+
+        scalar scale = log((z - di + z0i)/z0i) / log((Zref_->value(t) + z0i)/z0i);
+        scale = max(scale, 0);
+
+        mappedU[i] *= scale;
+    }
+
+    return tmappedU;
+}
+
+
+tmp<scalarField> atmBoundaryLayerMapped::scalarMapped() const
+{
+    if (!useMapping_ || !scalarMapper_)
+    {
+        FatalErrorInFunction
+            << "scalarMapped called but mapping not initialized"
+            << abort(FatalError);
+    }
+
+    const scalar t = time_.timeOutputValue();
+    return scalarMapper_->value(t);
+}
+
+
 void atmBoundaryLayerMapped::write(Ostream& os) const
 {
+    os.writeEntry("useMapping", useMapping_);
     os.writeEntry("initABL", initABL_);
     os.writeEntry("kappa", kappa_);
     os.writeEntry("Cmu", Cmu_);
@@ -297,6 +415,14 @@ void atmBoundaryLayerMapped::write(Ostream& os) const
     if (d_)
     {
         d_->writeData(os);
+    }
+    if (UMapper_)
+    {
+        UMapper_->writeData(os);
+    }
+    if (scalarMapper_)
+    {
+        scalarMapper_->writeData(os);
     }
 }
 

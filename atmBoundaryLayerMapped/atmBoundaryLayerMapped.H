@@ -283,6 +283,15 @@ private:
         //- Displacement height
         autoPtr<PatchFunction1<scalar>> d_;
 
+        //- Mapping for velocity field (time-varying)
+        autoPtr<PatchFunction1<vector>> UMapper_;
+
+        //- Mapping for scalar fields (k, epsilon, omega) - time-varying
+        autoPtr<PatchFunction1<scalar>> scalarMapper_;
+
+        //- Flag to use mapping instead of theoretical profiles
+        bool useMapping_;
+
 
 public:
 
@@ -297,6 +306,15 @@ public:
             const Time& time,
             const polyPatch& pp,
             const dictionary& dict
+        );
+
+        //- Construct from the time database, dictionary and field name for mapping
+        atmBoundaryLayerMapped
+        (
+            const Time& time,
+            const polyPatch& pp,
+            const dictionary& dict,
+            const word& fieldName
         );
 
         //- Construct by mapping given atmBoundaryLayerMapped onto a new patch
@@ -347,6 +365,15 @@ public:
 
             //- Return the specific dissipation rate distribution for the ATM
             tmp<scalarField> omega(const vectorField& pCf) const;
+
+            //- Return mapped velocity (with ABL scaling applied)
+            tmp<vectorField> Umapped(const vectorField& pCf) const;
+
+            //- Return mapped scalar value (direct mapping, no scaling)
+            tmp<scalarField> scalarMapped() const;
+
+            //- Return useMapping flag
+            bool useMapping() const { return useMapping_; }
 
 
         //- Write
