@@ -59,7 +59,7 @@ atmBoundaryLayerMappedOmegaFvPatchScalarField
 )
 :
     inletOutletFvPatchScalarField(p, iF),
-    atmBoundaryLayerMapped(iF.time(), p.patch(), dict)
+    atmBoundaryLayerMapped(iF.time(), p.patch(), dict, "omega")
 {
     phiName_ = dict.getOrDefault<word>("phi", "phi");
 

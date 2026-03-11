@@ -266,14 +266,8 @@ private:
         //- Reference to the patch
         const polyPatch& patch_;
 
-        //- Streamwise flow direction
-        autoPtr<Function1<vector>> flowDir_;
-
         //- Direction of the ground-normal coordinate
         autoPtr<Function1<vector>> zDir_;
-
-        //- Reference mean streamwise flow speed being used in Ustar estimations
-        autoPtr<Function1<scalar>> Uref_;
 
         //- Reference height being used in Ustar estimations
         autoPtr<Function1<scalar>> Zref_;
@@ -290,9 +284,6 @@ private:
         //- Mapping for scalar fields (k, epsilon, omega) - time-varying
         autoPtr<PatchFunction1<scalar>> scalarMapper_;
 
-        //- Flag to use mapping instead of theoretical profiles
-        bool useMapping_;
-
 
 public:
 
@@ -300,14 +291,6 @@ public:
 
         //- Construct null from time
         atmBoundaryLayerMapped(const Time& time, const polyPatch& pp);
-
-        //- Construct from the time database and dictionary
-        atmBoundaryLayerMapped
-        (
-            const Time& time,
-            const polyPatch& pp,
-            const dictionary& dict
-        );
 
         //- Construct from the time database, dictionary and field name for mapping
         atmBoundaryLayerMapped
@@ -334,14 +317,8 @@ public:
 
         // Access
 
-            //- Return flow direction
-            vector flowDir() const;
-
             //- Return the ground-normal direction
             vector zDir() const;
-
-            //- Return friction velocity (based on Uref)
-            tmp<scalarField> Ustar(const scalarField& z0) const;
 
             //- Return friction velocity from actual U values (for mapped velocity)
             tmp<scalarField> UstarFromU
@@ -394,9 +371,6 @@ public:
 
             //- Return mapped scalar value (direct mapping, no scaling)
             tmp<scalarField> scalarMapped() const;
-
-            //- Return useMapping flag
-            bool useMapping() const { return useMapping_; }
 
 
         //- Write

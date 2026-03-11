@@ -61,7 +61,7 @@ atmBoundaryLayerMappedEpsilonFvPatchScalarField
 )
 :
     inletOutletFvPatchScalarField(p, iF),
-    atmBoundaryLayerMapped(iF.time(), p.patch(), dict)
+    atmBoundaryLayerMapped(iF.time(), p.patch(), dict, "epsilon")
 {
     phiName_ = dict.getOrDefault<word>("phi", "phi");
 
