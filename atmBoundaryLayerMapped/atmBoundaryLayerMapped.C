@@ -411,23 +411,29 @@ tmp<vectorField> atmBoundaryLayerMapped::Umapped(const vectorField& pCf) const
     const scalarField d(d_->value(t));
     const scalarField z0(max(z0_->value(t), ROOTVSMALL));
     const scalar groundMin = zDir() & ppMin_;
+    const scalar ZrefVal = Zref_->value(t);
 
     const scalarField zHeight = (zDir() & pCf) - groundMin;
 
     forAll(mappedU, i)
     {
         const scalar z = zHeight[i];
-        const scalar z0i = z0[i];
-        const scalar di = d[i];
 
-        // Bounds checking for log arguments
-        scalar logArg1 = max((z - di + z0i)/z0i, ROOTVSMALL);
-        scalar logArg2 = max((Zref_->value(t) + z0i)/z0i, ROOTVSMALL);
+        // Only apply atm correction below Zref; use mapped value above Zref
+        if (z < ZrefVal)
+        {
+            const scalar z0i = z0[i];
+            const scalar di = d[i];
 
-        scalar scale = log(logArg1) / log(logArg2);
-        scale = max(scale, 0);
+            // Bounds checking for log arguments
+            scalar logArg1 = max((z - di + z0i)/z0i, ROOTVSMALL);
+            scalar logArg2 = max((ZrefVal + z0i)/z0i, ROOTVSMALL);
 
-        mappedU[i] *= scale;
+            scalar scale = log(logArg1) / log(logArg2);
+            scale = max(scale, 0);
+
+            mappedU[i] *= scale;
+        }
     }
 
     return tmappedU;

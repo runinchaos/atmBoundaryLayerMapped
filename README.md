@@ -10,7 +10,7 @@
 
 - **严格配套**：k/ε/ω必须与`atmBoundaryLayerMappedVelocity`一起使用，否则报错
 - **自动计算湍流**：根据实际U值计算u*，再用ABL公式计算k/ε/ω
-- **ABL对数律缩放**：U的mapped数据会经过对数律缩放
+- **ABL对数律缩放**：U的mapped数据在低于Zref时经过对数律缩放，高于Zref时直接使用原始map值
 - **极简配置**：k/ε/ω边界只需要指定`type`和`phi`，其他参数从U复制
 
 ## 数据流
@@ -23,14 +23,22 @@ boundaryData/
 │       └── U           # ← 唯一的外部数据源
 │
 计算流程：
-U (mapped + ABL缩放) → u*计算 → k/ε/ω (ABL公式)
-                     ↓
-              UstarFromU(): u* = κ·U/ln((z-d+z₀)/z₀)
-                     ↓
-        k = u*²/√Cμ · √(C₁·ln(...) + C₂)
-        ε = u*³/(κ·z) · √(C₁·ln(...) + C₂)  
-        ω = u*/(κ·√Cμ·z)
+U (mapped) → Zref判断 → { z < Zref: ABL对数律缩放
+                        { z ≥ Zref: 直接使用map值
+                      ↓
+               UstarFromU(): u* = κ·U/ln((z-d+z₀)/z₀)
+                      ↓
+         k = u*²/√Cμ · √(C₁·ln(...) + C₂)
+         ε = u*³/(κ·z) · √(C₁·ln(...) + C₂)  
+         ω = u*/(κ·√Cμ·z)
 ```
+
+### U边界条件的Zref判断逻辑
+
+| 高度范围 | 处理方式 | 说明 |
+|----------|----------|------|
+| z < Zref | 应用ABL对数律缩放 | map的U值乘以 `ln((z-d+z₀)/z₀) / ln((Zref+z₀)/z₀)` |
+| z ≥ Zref | 直接使用map值 | 不做任何修正，保留原始映射数据 |
 
 ### 计算公式
 
