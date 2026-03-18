@@ -327,6 +327,9 @@ public:
                 const vectorField& pCf
             ) const;
 
+            //- Return the global ground reference coordinate along zDir
+            scalar groundMin() const;
+
             //- Return surface roughness length values
             tmp<scalarField> z0() const;
 
