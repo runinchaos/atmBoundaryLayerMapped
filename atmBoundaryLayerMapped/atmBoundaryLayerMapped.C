@@ -189,14 +189,6 @@ tmp<scalarField> atmBoundaryLayerMapped::d() const
 }
 
 
-scalar atmBoundaryLayerMapped::groundMin() const
-{
-    scalar gMin = zDir() & ppMin_;
-    reduce(gMin, minOp<scalar>());
-    return gMin;
-}
-
-
 tmp<scalarField> atmBoundaryLayerMapped::UstarFromU
 (
     const vectorField& Uvalues,
@@ -224,7 +216,7 @@ tmp<scalarField> atmBoundaryLayerMapped::UstarFromU
     const scalar t = time_.timeOutputValue();
     const scalarField dvals(d_->value(t));
     const scalarField z0vals(max(z0_->value(t), ROOTVSMALL));
-    const scalar groundMin = this->groundMin();
+    const scalar groundMin = zDir() & ppMin_;
 
     // Calculate flow direction from Uvalues using parallel-safe reduce
     vector avgU = Zero;
@@ -340,7 +332,7 @@ tmp<scalarField> atmBoundaryLayerMapped::kFromUstar(const scalarField& uStar, co
     const scalar t = time_.timeOutputValue();
     const scalarField d(d_->value(t));
     const scalarField z0(max(z0_->value(t), ROOTVSMALL));
-    const scalar groundMin = this->groundMin();
+    const scalar groundMin = zDir() & ppMin_;
 
     // (YGCJ:Eq. 21) with bounds checking
     scalarField logArg = ((zDir() & pCf) - groundMin - d + z0)/z0;
@@ -356,7 +348,7 @@ tmp<scalarField> atmBoundaryLayerMapped::epsilonFromUstar(const scalarField& uSt
     const scalar t = time_.timeOutputValue();
     const scalarField d(d_->value(t));
     const scalarField z0(max(z0_->value(t), ROOTVSMALL));
-    const scalar groundMin = this->groundMin();
+    const scalar groundMin = zDir() & ppMin_;
 
     // (YGCJ:Eq. 22) with bounds checking
     scalarField denom = max((zDir() & pCf) - groundMin - d + z0, ROOTVSMALL);
@@ -373,7 +365,7 @@ tmp<scalarField> atmBoundaryLayerMapped::omegaFromUstar(const scalarField& uStar
     const scalar t = time_.timeOutputValue();
     const scalarField d(d_->value(t));
     const scalarField z0(max(z0_->value(t), ROOTVSMALL));
-    const scalar groundMin = this->groundMin();
+    const scalar groundMin = zDir() & ppMin_;
 
     // (YGJ:Eq. 13) with bounds checking
     scalarField denom = max((zDir() & pCf) - groundMin - d + z0, ROOTVSMALL);
@@ -389,21 +381,9 @@ tmp<vectorField> atmBoundaryLayerMapped::Umapped(const vectorField& pCf) const
     tmp<vectorField> tmappedU(UMapper_->value(t));
     vectorField& mappedU = tmappedU.ref();
 
-    if (mappedU.size() != pCf.size())
-    {
-        FatalErrorInFunction
-            << "Mapped velocity size mismatch on patch '" << patch_.name() << "': "
-            << "mapped data has " << mappedU.size() << " values, but the patch has "
-            << pCf.size() << " faces on this rank."
-            << nl
-            << "This usually indicates a parallel mapping/decomposition issue "
-            << "(for example, inconsistent inlet patch partitioning or boundaryData sampling)."
-            << abort(FatalError);
-    }
-
     const scalarField d(d_->value(t));
     const scalarField z0(max(z0_->value(t), ROOTVSMALL));
-    const scalar groundMin = this->groundMin();
+    const scalar groundMin = zDir() & ppMin_;
     const scalar ZrefVal = Zref_->value(t);
 
     const scalarField zHeight = (zDir() & pCf) - groundMin;
