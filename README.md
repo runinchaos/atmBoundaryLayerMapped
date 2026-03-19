@@ -40,6 +40,7 @@ flowchart LR
 - **Automatic turbulence**: k/ε/ω calculated from U using ABL formulas — no separate data files needed
 - **Strict coupling**: k/ε/ω BCs require `atmBoundaryLayerMappedVelocity` on U — prevents configuration errors
 - **Inlet/outlet capable**: Based on `inletOutlet` — handles backflow gracefully
+- **Nearest-point mapping**: Uses `mapMethod nearest` to avoid triangulation issues on non-planar surfaces
 
 ---
 
@@ -148,6 +149,8 @@ simpleFoam
 | `Cmu`     | No       | 0.09    | Turbulence model constant    |
 | `C1`      | No       | 0.0     | ABL profile coefficient      |
 | `C2`      | No       | 1.0     | ABL profile coefficient      |
+
+> **Note**: The `mapMethod` is hardcoded to `nearest` internally. This avoids 2D triangulation issues on non-planar boundary surfaces and ensures direct point-to-point mapping.
 
 ---
 

@@ -82,6 +82,8 @@ atmBoundaryLayerMapped::atmBoundaryLayerMapped
     scalarMapper_(nullptr)
 {
     // Always use mapping mode - this BC is designed for mapped data only
+    // Force mapMethod to nearest to avoid triangulation issues
+    const_cast<dictionary&>(dict).set("mapMethod", "nearest");
     if (fieldName == "U")
     {
         UMapper_.reset
